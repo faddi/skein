@@ -4076,6 +4076,49 @@ async fn create_room_ceiling_counts_a_linked_worktree_against_its_main_checkout_
         "{err:?}"
     );
 }
+/// The same repository reached through two spellings of its path must
+/// still be one group. Here the seeded rooms name the checkout through
+/// a symlink and the caller sits at its real path — the everyday form of
+/// this is macOS, where libgit2 reports a worktree's main checkout under
+/// `/private/var` while a room created at the checkout itself keeps the
+/// `/var` it was handed. Without canonicalizing, the 20 seeded rooms
+/// would count for nothing and this would reach the (unanswerable)
+/// round trip instead of `Refused`.
+#[cfg(unix)]
+#[tokio::test]
+async fn create_room_ceiling_matches_a_group_through_a_symlinked_spelling() {
+    let f = fixture();
+    let parent = TempDir::new().unwrap();
+    let real = parent.path().join("real");
+    std::fs::create_dir(&real).unwrap();
+    git_repo_with_commit(&real);
+    let link = parent.path().join("link");
+    std::os::unix::fs::symlink(&real, &link).unwrap();
+    let via_link = link.to_str().unwrap().to_owned();
+
+    let mut r1 = room("r1", vec![harness("h1", "claude", "main")]);
+    r1.cwd = Some(real.to_str().unwrap().to_owned());
+    let mut rooms = vec![r1];
+    for n in 0..20 {
+        rooms.push(agent_opened_room(&format!("l-{n}"), Some(&via_link)));
+    }
+    save(&f.db, &rooms);
+    let caller = caller_for(&f.db, "r1", Some("h1"));
+    let state = agent_api_state(&f);
+    let err = verbs::create_room(
+        &state,
+        &caller,
+        &create_room_args("hi"),
+        &MailContext::permissive(),
+        true,
+    )
+    .await
+    .unwrap_err();
+    assert!(
+        matches!(&err, VerbError::Refused(m) if m.contains("cap") && m.contains("repository group")),
+        "{err:?}"
+    );
+}
 
 #[tokio::test]
 async fn create_room_with_a_prompt_refuses_up_front_when_messaging_is_off() {

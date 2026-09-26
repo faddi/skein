@@ -638,6 +638,21 @@ fn normalize_path_for_match(path: &str) -> String {
     s.to_lowercase()
 }
 
+/// A repository group's key for comparison: the root canonicalized
+/// while it still exists, then normalized. `repoRoot` gets stored in two
+/// spellings — `repo_root_for_path` returns a plain checkout's path
+/// exactly as it was handed over, but a linked worktree's main checkout
+/// the way libgit2 resolved it, with every symlink followed (macOS's own
+/// `/var` → `/private/var` is the everyday case) — so comparing the
+/// strings splits one repository into two groups. A root that no longer
+/// exists keeps its stored spelling: it can't be the same folder as one
+/// that does.
+fn group_key_for_match(root: &str) -> String {
+    let canonical = std::fs::canonicalize(root)
+        .map_or_else(|_| root.to_owned(), |p| p.to_string_lossy().into_owned());
+    normalize_path_for_match(&canonical)
+}
+
 /// Whether normalized `a` sits under normalized `b` as a strict
 /// descendant, on path-segment boundaries — `/a/foo` must never match
 /// under `/a/foobar`. `b` already ending in `/` (a normalized root)
@@ -1572,13 +1587,13 @@ pub async fn create_room(
     // scoping below can't drift from what the new room will actually be
     // grouped under (#375).
     let new_repo_root = repo_root_for_path(path_buf);
-    let new_group_key = new_repo_root.as_deref().map(normalize_path_for_match);
+    let new_group_key = new_repo_root.as_deref().map(group_key_for_match);
     let scoped_open_count = rooms
         .iter()
         .filter(|r| {
             r.archived.is_none()
                 && r.created_by.is_some()
-                && r.repo_root.as_deref().map(normalize_path_for_match) == new_group_key
+                && r.repo_root.as_deref().map(group_key_for_match) == new_group_key
         })
         .count();
     if scoped_open_count >= MAX_OPEN_ROOMS_PER_GROUP {
