@@ -3488,6 +3488,14 @@ mod tests {
         )
         .unwrap();
         sf.sync_all().unwrap();
+        // Every handle is closed before its drain. macOS FSEvents reports
+        // a content change when the writer *closes* the file, not per
+        // write, so an append through a still-open handle is invisible
+        // there until it drops — Linux and Windows report each write.
+        // Claude Code itself closes after every append (no running
+        // `claude` holds its transcript open), so closing is also what
+        // mirrors production.
+        drop(sf);
 
         let events = drain(&rx);
         assert!(
@@ -3508,6 +3516,7 @@ mod tests {
         )
         .unwrap();
         mf.sync_all().unwrap();
+        drop(mf);
 
         let events = drain(&rx);
         assert!(
@@ -3524,6 +3533,7 @@ mod tests {
         )
         .unwrap();
         mf.sync_all().unwrap();
+        drop(mf);
 
         let events = drain(&rx);
         assert!(
@@ -3543,6 +3553,7 @@ mod tests {
         )
         .unwrap();
         sf.sync_all().unwrap();
+        drop(sf);
 
         let events = drain(&rx);
         assert!(
