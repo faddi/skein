@@ -13,6 +13,7 @@ import "@xterm/xterm/css/xterm.css";
 import { isMac } from "./shortcuts.ts";
 import { fitTerminal } from "./terminalFit.ts";
 import { shouldHostOpenLink } from "./terminalLinks.ts";
+import { attachWheelReports } from "./terminalWheel.ts";
 
 /** Click-time link policy, mutated by the caller once `pty_spawn` resolves (#401). */
 export interface LinkPolicy {
@@ -149,6 +150,13 @@ export function createXterm(
 	term.options.linkHandler = {
 		activate: (event, uri) => handleUriClick(event, uri),
 	};
+
+	// Trackpad scrolling in a mouse-tracking TUI: one wheel report per
+	// line of travel, like a native macOS terminal (see terminalWheel.ts).
+	// macOS only on purpose: Windows Terminal reports once per wheel
+	// notch, and Claude Code scales its Windows profile for that, so
+	// per-line reports there would overshoot.
+	if (isMac) attachWheelReports(term);
 
 	term.open(host);
 	// If we're mounting into a hidden pane (e.g. an inactive room
