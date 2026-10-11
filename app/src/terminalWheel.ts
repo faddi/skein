@@ -82,9 +82,26 @@ function clamp(n: number, min: number, max: number): number {
 	return Math.min(max, Math.max(min, n));
 }
 
+/** Whether Skein sends the wheel reports itself: SGR encoding, a tracking
+ *  mode that wants the wheel (X10 doesn't), and no modifier held. */
+export function takesWheel(s: {
+	sgr: boolean;
+	tracking: string;
+	altKey: boolean;
+	ctrlKey: boolean;
+	metaKey: boolean;
+	shiftKey: boolean;
+}): boolean {
+	if (!s.sgr || s.tracking === "none" || s.tracking === "x10") return false;
+	return !(s.altKey || s.ctrlKey || s.metaKey || s.shiftKey);
+}
+
 /** Takes over wheel reporting for `term` as described above. Call once,
  *  at creation, before any child output is written. */
 export function attachWheelReports(term: Terminal): void {
+	// A fraction left over from one tracked scroll must not add a report to
+	// the next, so every way tracking or SGR ends drops it.
+	const carry: WheelCarry = { lines: 0 };
 	// xterm keeps the encoding private, so follow the same sequences it
 	// does. Returning false lets xterm's own handler apply each one too.
 	let sgr = false;
@@ -94,18 +111,24 @@ export function attachWheelReports(term: Terminal): void {
 	});
 	term.parser.registerCsiHandler({ prefix: "?", final: "l" }, (params) => {
 		sgr = sgrAfterDecMode(sgr, params, false);
+		carry.lines = 0;
 		return false;
 	});
 	term.parser.registerEscHandler({ final: "c" }, () => {
 		sgr = false; // RIS resets the encoding along with everything else
+		carry.lines = 0;
 		return false;
 	});
 
-	const carry: WheelCarry = { lines: 0 };
 	term.attachCustomWheelEventHandler((ev) => {
 		const tracking = term.modes.mouseTrackingMode;
-		if (!sgr || tracking === "none" || tracking === "x10") return true;
-		if (ev.altKey || ev.ctrlKey || ev.metaKey || ev.shiftKey) return true;
+		const { altKey, ctrlKey, metaKey, shiftKey } = ev;
+		// A DECSET can also leave the mode Skein handles (`?9h` → X10), so any
+		// event xterm handles itself drops the fraction too.
+		if (!takesWheel({ sgr, tracking, altKey, ctrlKey, metaKey, shiftKey })) {
+			carry.lines = 0;
+			return true;
+		}
 		const rect = term.element?.querySelector(".xterm-screen")?.getBoundingClientRect();
 		if (!rect || rect.width === 0 || rect.height === 0) return true;
 		const cellHeight = rect.height / term.rows;

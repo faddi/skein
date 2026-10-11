@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sgrAfterDecMode, sgrWheelReports, wheelLines } from "./terminalWheel.ts";
+import { sgrAfterDecMode, sgrWheelReports, takesWheel, wheelLines } from "./terminalWheel.ts";
 
 const PIXEL = 0;
 const LINE = 1;
@@ -60,6 +60,36 @@ describe("sgrWheelReports", () => {
 	it("writes wheel-up for negative lines", () => {
 		expect(sgrWheelReports(-1, 1, 1)).toBe("\x1b[<64;1;1M");
 	});
+});
+
+describe("takesWheel", () => {
+	const base = {
+		sgr: true,
+		tracking: "vt200",
+		altKey: false,
+		ctrlKey: false,
+		metaKey: false,
+		shiftKey: false,
+	};
+
+	it.each(["vt200", "drag", "any"])("takes the wheel under %s tracking with SGR", (tracking) => {
+		expect(takesWheel({ ...base, tracking })).toBe(true);
+	});
+
+	it.each(["none", "x10"])("leaves the wheel to xterm under %s tracking", (tracking) => {
+		expect(takesWheel({ ...base, tracking })).toBe(false);
+	});
+
+	it("leaves the wheel to xterm when SGR is off", () => {
+		expect(takesWheel({ ...base, sgr: false })).toBe(false);
+	});
+
+	it.each(["altKey", "ctrlKey", "metaKey", "shiftKey"])(
+		"leaves the wheel to xterm with %s held",
+		(key) => {
+			expect(takesWheel({ ...base, [key]: true })).toBe(false);
+		},
+	);
 });
 
 describe("sgrAfterDecMode", () => {
