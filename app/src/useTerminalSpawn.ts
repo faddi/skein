@@ -21,8 +21,9 @@ import { harnessInput } from "./harnessInput.ts";
 import type { ShellClaimSink } from "./opencodeShellClaim.ts";
 import { followOpencodeShell, type OpencodeAdapter } from "./opencodeShellFollow.ts";
 import { bufferPtyInput } from "./ptyInputBuffer.ts";
-import type { PtySpawnResult } from "./ptySpawnResult.ts";
+import { type PtyEvent, ptySpawn } from "./ptySpawnCall.ts";
 import { shellClaim } from "./shellClaim.ts";
+import { forgetSpawnedProfile, recordSpawnedProfile } from "./spawnedEnvProfile.ts";
 import { startupAdoption } from "./startupAdoption.ts";
 import { subagents } from "./subagents.ts";
 import { attachTerminalInteractions } from "./terminalInteractions.ts";
@@ -33,8 +34,6 @@ import { agentResolves } from "./terminalSpawnAgent.ts";
 import { attachPtyInput, observeResize, registerInputTarget } from "./terminalSpawnInput.ts";
 import type { HarnessKind } from "./types.ts";
 import { useClaudeRepoint } from "./useClaudeRepoint.ts";
-
-type PtyEvent = { kind: "data"; chunk: string } | { kind: "exit"; code: number | null };
 
 export interface UseTerminalSpawnParams {
 	cmd: string[];
@@ -47,6 +46,8 @@ export interface UseTerminalSpawnParams {
 	harnessKind: HarnessKind;
 	sessionId: string | undefined;
 	agent: string | undefined;
+	/** #615: read at spawn time only (effect deps are [mountKey]). */
+	envProfile: string | undefined;
 	opencodePort: number | undefined;
 	onSessionCaptured: ((sessionId: string) => void) | undefined;
 	onSessionFollowed: ((sessionId: string) => void) | undefined;
@@ -82,6 +83,7 @@ export function useTerminalSpawn(params: UseTerminalSpawnParams): void {
 		harnessKind,
 		sessionId,
 		agent,
+		envProfile,
 		opencodePort,
 		onSessionCaptured,
 		onSessionFollowed,
@@ -269,27 +271,20 @@ export function useTerminalSpawn(params: UseTerminalSpawnParams): void {
 			// post-exit shell is invisible to Rust and not covered.
 			linkPolicy.mouseClicksDisabled = false;
 			try {
-				const { id, injected, mouseClicksDisabled } = await invoke<PtySpawnResult>("pty_spawn", {
+				const {
+					id,
+					injected,
+					mouseClicksDisabled,
+					envProfile: appliedProfile,
+				} = await ptySpawn({
 					cmd: cmdToSpawn,
 					cwd,
 					rows: term.rows,
 					cols: term.cols,
-					// #213: the backend mints the room's review token and
-					// puts SKEIN_REVIEW_URL / _TOKEN / SKEIN_ROOM_ID /
-					// SKEIN_HARNESS_ID into the child's environment. The
-					// harness id is what makes an agent's reply
-					// attributable to one harness rather than to "an
-					// agent" — a room can have several.
 					roomId,
 					harnessId,
-					// #215: which agent CLI this is, so the backend can
-					// append `--plugin-dir` / set `OPENCODE_CONFIG` and
-					// the review tools are there without the user
-					// configuring anything. Sent as the harness *kind*
-					// rather than inferred from `cmd`, because the two
-					// legitimately disagree once the user has swapped a
-					// command (the post-exit "Enter for shell" path).
 					kind: harnessKind,
+					envProfile,
 					onEvent: channel,
 				});
 				if (cancelled) {
@@ -299,6 +294,7 @@ export function useTerminalSpawn(params: UseTerminalSpawnParams): void {
 				}
 				ptyIdRef.current = id;
 				linkPolicy.mouseClicksDisabled = mouseClicksDisabled;
+				recordSpawnedProfile(harnessId, appliedProfile ?? null);
 				harnessActivity.setInjected(harnessId, injected);
 				// #238: publish this harness to the `harnessInput` seam now
 				// that its PTY is live.
@@ -389,6 +385,7 @@ export function useTerminalSpawn(params: UseTerminalSpawnParams): void {
 			backgroundTasks.forget(harnessId);
 			shellClaim.forget(harnessId);
 			startupAdoption.forget(harnessId); // #539
+			forgetSpawnedProfile(harnessId); // #615
 		};
 	}, [mountKey]);
 	// #116 re-point effect: see useClaudeRepoint.ts.
