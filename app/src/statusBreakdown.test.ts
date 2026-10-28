@@ -122,6 +122,33 @@ describe("buildBreakdown", () => {
 		expect(buildBreakdown(rooms, deps).rows[0]?.label).toBe("delegating · 2 agents, 1 task");
 	});
 
+	it("attaches per-row context", () => {
+		const rooms = [
+			room("r1", [harness({ id: "h1", name: "A" }), harness({ id: "h2", name: "B" })], "Room1"),
+			room("r2", [
+				harness({ id: "h3", name: "C" }),
+				harness({ id: "sh", name: "S", kind: "copilot" }),
+			]),
+		];
+		const sizes: Record<string, number> = { h1: 50_000, h2: 142_000, sh: 900_000 };
+		const deps = {
+			...makeDeps({
+				h1: phaseActivity("running"),
+				h2: phaseActivity("idle"),
+				h3: phaseActivity("idle"),
+			}),
+			contextSize: (id: string) => sizes[id],
+		};
+		const result = buildBreakdown(rooms, deps);
+		expect(result.rows.map((r) => r.context)).toEqual([50_000]);
+	});
+
+	it("omits context entirely when no value is known", () => {
+		const rooms = [room("r1", [harness({ id: "h1" })])];
+		const result = buildBreakdown(rooms, makeDeps({ h1: phaseActivity("running") }));
+		expect(result.rows[0]).not.toHaveProperty("context");
+	});
+
 	it("returns idle with no rows for no rooms at all", () => {
 		const result = buildBreakdown([], makeDeps({}));
 		expect(result.status).toBe("idle");

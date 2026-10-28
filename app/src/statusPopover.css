@@ -110,6 +110,10 @@
 	color: var(--fg-2);
 	white-space: nowrap;
 }
+.sk-pop-breakdown .bd-ctx {
+	color: var(--fg-2);
+	white-space: nowrap;
+}
 .sk-pop-breakdown .bd-footer {
 	color: var(--fg-2);
 	white-space: nowrap;

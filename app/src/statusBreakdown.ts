@@ -49,6 +49,9 @@ export interface BreakdownDeps {
 	/// #447: live background tasks and how many of them count as working.
 	backgroundTasks(id: string): readonly BackgroundTaskEntry[];
 	workingTaskCount(id: string): number;
+	/// #368: a harness's latest context size in tokens; absent = unknown.
+	/// Optional so a caller without the store simply shows no context.
+	contextSize?(id: string): number | undefined;
 }
 
 /// One background task as shown in the breakdown. The entry itself:
@@ -83,6 +86,8 @@ export interface BreakdownRow {
 	hiddenSubagents: number;
 	tasks: BreakdownTask[];
 	hiddenTasks: number;
+	/// #368: this harness's own context size in tokens, when known.
+	context?: number;
 }
 
 /// One room's worth of quiet harnesses, grouped for the popover's
@@ -182,7 +187,9 @@ export function buildBreakdown(
 				}),
 			);
 			const liveTasks = deps.backgroundTasks(h.id);
+			const context = deps.contextSize?.(h.id);
 			rows.push({
+				...(context !== undefined && { context }),
 				roomId: room.id,
 				roomName: room.name,
 				harnessId: h.id,
