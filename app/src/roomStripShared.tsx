@@ -13,7 +13,7 @@ import type { TabDropTarget } from "./useTabDrag.ts";
 /// the input. A group's main room can be shown by TWO tabs at once — the
 /// top-row `GroupTab` (via `groupDisplayName`) and, when that room is
 /// active, its own pinned lead tab in the second row — so `roomId` alone
-/// can't say which one should mount the (single) `RoomNameInput`.
+/// can't say which one should mount the (single) `TabNameInput`.
 /// `"group"` only ever applies to a `GroupTab`; every other room tab
 /// (plain top-level, a group's lead, a group member) is `"tab"`.
 export interface RenameTarget {

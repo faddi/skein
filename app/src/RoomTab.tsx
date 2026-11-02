@@ -3,7 +3,7 @@ import { ContextMark } from "./ContextMarks.tsx";
 import { contextHarnessIds } from "./contextHarnessIds.ts";
 import type { DragProps } from "./dragProps.ts";
 import { HChip, StatusDot } from "./HChip.tsx";
-import { RoomNameInput } from "./RoomNameInput.tsx";
+import { TabNameInput } from "./TabNameInput.tsx";
 import { useTodoMenu } from "./todos/TodoMenuProvider.tsx";
 import type { Room } from "./types.ts";
 import "./RoomStrip.css";
@@ -104,7 +104,8 @@ export const RoomTab = ({
 			    hovering a dot/chip shows only the status popover (not the
 			    native tooltip on top of it). */}
 				{renaming ? (
-					<RoomNameInput
+					<TabNameInput
+						className="name name-input"
 						initial={r.name}
 						onCommit={(name) => {
 							onRename?.(name);

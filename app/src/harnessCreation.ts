@@ -231,6 +231,16 @@ export const withOpencodeVersion = (
 		return { ...h, opencodeVersion: { major: version.major, version: version.version } };
 	});
 
+// The user renamed a harness from its tab. Display only: nothing keys on
+// `Harness.name`. Unchanged = same rooms reference.
+export const withHarnessName = (
+	rooms: Room[],
+	targetRoomId: string,
+	harnessId: string,
+	name: string,
+): Room[] =>
+	mapHarness(rooms, targetRoomId, harnessId, (h) => (h.name === name ? h : { ...h, name }));
+
 // A cmd replacement (Enter-for-shell, restart) is a fresh process: bump
 // spawnGen, optionally set the session id, and drop any shell claim (#520).
 export const withRespawnedCmd = (

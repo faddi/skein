@@ -127,6 +127,7 @@ export interface HarnessColumnProps {
 	onCancelPick: () => void;
 	onSwitchHarness: (roomId: string, harnessId: string) => void;
 	onCloseHarness: (roomId: string, harnessId: string) => void;
+	onRenameHarness: (roomId: string, harnessId: string, name: string) => void;
 	onHarnessCmdChange: (roomId: string, harnessId: string, cmd: string[]) => void;
 	onDesignEntryChange: (roomId: string, harnessId: string, entry: string) => void;
 	onDesignDeviceChange: DeviceChangeHandler;
@@ -172,6 +173,7 @@ const HarnessColumnImpl = ({
 	onCancelPick,
 	onSwitchHarness,
 	onCloseHarness,
+	onRenameHarness,
 	onHarnessCmdChange,
 	onDesignEntryChange,
 	onDesignDeviceChange,
@@ -233,6 +235,7 @@ const HarnessColumnImpl = ({
 							closable={room.harnesses.length > 1}
 							onClick={() => onSwitchHarness(room.id, h.id)}
 							onClose={() => onCloseHarness(room.id, h.id)}
+							onRename={(name) => onRenameHarness(room.id, h.id, name)}
 							dragging={harnessDrag.draggedHarnessId === h.id}
 							dropSide={harnessDrag.dropTargetHarnessId === h.id ? harnessDrag.dropSide : null}
 							dragKind="harness"

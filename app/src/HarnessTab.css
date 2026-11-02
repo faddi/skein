@@ -82,3 +82,19 @@
 .tab-update:focus-visible {
 	background: color-mix(in srgb, var(--accent) 20%, transparent);
 }
+/* Inline harness rename — same slot and look as the room tab's
+   `.name-input` (RoomStrip.css). */
+.sk-harness-tab .ht-name-input {
+	width: 14ch;
+	max-width: 140px;
+	background: var(--bg-1);
+	color: var(--fg-0);
+	border: 1px solid var(--accent);
+	border-radius: 3px;
+	font: inherit;
+	font-size: 1em;
+	padding: 0 3px;
+	margin: -1px 0;
+	outline: none;
+	cursor: text;
+}

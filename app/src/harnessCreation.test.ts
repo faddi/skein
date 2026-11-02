@@ -7,6 +7,7 @@ import {
 	harnessDisplayName,
 	resolveAgentName,
 	withCapturedSessionId,
+	withHarnessName,
 	withOpencodeVersion,
 	withoutShellClaim,
 	withReplacedSessionId,
@@ -192,5 +193,17 @@ describe("withOpencodeVersion (#675)", () => {
 		const cleared = withOpencodeVersion(set, "s1", "h1", null);
 		expect(cleared[0]?.harnesses[0] && "opencodeVersion" in cleared[0].harnesses[0]).toBe(false);
 		expect(withOpencodeVersion(cleared, "s1", "h1", null)).toBe(cleared);
+	});
+});
+
+describe("withHarnessName", () => {
+	it("renames only the target harness, and no-ops on the same name", () => {
+		const rooms = [room("sid")];
+		const renamed = withHarnessName(rooms, "s1", "h1", "planner");
+		expect(renamed[0]?.harnesses[0]?.name).toBe("planner");
+		expect(renamed[0]?.harnesses[0]?.sessionId).toBe("sid");
+		expect(rooms[0]?.harnesses[0]?.name).toBe("main");
+		expect(withHarnessName(renamed, "s1", "h1", "planner")).toBe(renamed);
+		expect(withHarnessName(rooms, "s1", "other", "planner")).toBe(rooms);
 	});
 });

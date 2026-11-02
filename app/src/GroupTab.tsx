@@ -1,6 +1,6 @@
 import { type MouseEvent as ReactMouseEvent, useMemo } from "react";
 import { ContextMark } from "./ContextMarks.tsx";
-import { RoomNameInput, StatusDot } from "./components.tsx";
+import { StatusDot, TabNameInput } from "./components.tsx";
 import { contextHarnessIds } from "./contextHarnessIds.ts";
 import { useRoomActivity } from "./harnessActivity.ts";
 import { groupDisplayName, groupRooms, type StripSegment, segmentId } from "./roomGroups.ts";
@@ -98,7 +98,8 @@ export const GroupTab = ({
 			<div className="row-1">
 				<StatusDot status={status} roomIds={rooms.map((r) => r.id)} aggName={displayName} />
 				{renaming ? (
-					<RoomNameInput
+					<TabNameInput
+						className="name name-input"
 						initial={displayName}
 						onCommit={(name) => {
 							onRename?.(name);

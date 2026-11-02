@@ -1,3 +1,4 @@
+import { type MouseEvent as ReactMouseEvent, useState } from "react";
 import { ContextChip } from "./ContextMarks.tsx";
 import type { VersionNotice } from "./claudeVersion.ts";
 import { badgeAriaLabel, badgeTitle, updateSegmentText } from "./claudeVersionText.ts";
@@ -8,6 +9,7 @@ import { type AgentLabel, opencodeVersionLabel } from "./harnessAgent.ts";
 import { requestDeliverNow } from "./mailDeliverNow.ts";
 import { useMailHold } from "./mailHold.ts";
 import { useUnreadMail } from "./mailStore.ts";
+import { TabNameInput } from "./TabNameInput.tsx";
 import { useTodoMenu } from "./todos/TodoMenuProvider.tsx";
 import type { Harness } from "./types.ts";
 import "./RoomStrip.css";
@@ -22,6 +24,7 @@ export const HarnessTab = ({
 	closable,
 	onClick,
 	onClose,
+	onRename,
 	dragging,
 	dropSide,
 	dragKind,
@@ -43,6 +46,8 @@ export const HarnessTab = ({
 	closable: boolean;
 	onClick: () => void;
 	onClose: () => void;
+	/** Inline rename on a double-click of the name; commits `Harness.name`. */
+	onRename: (name: string) => void;
 	/** #491: a newer Claude Code is installed than this harness runs.
 	 *  Absent when there is no notice or the kind's mode is off. */
 	update?: { notice: VersionNotice; refusal: string | null; onRestart: () => void } | undefined;
@@ -53,11 +58,15 @@ export const HarnessTab = ({
 	const mail = useUnreadMail(h.id);
 	const hold = useMailHold(h.id);
 	const openTodoMenu = useTodoMenu();
+	// Local, unlike the room tab's (#241): nothing outside the tab opens it.
+	const [renaming, setRenaming] = useState(false);
 	return (
 		<div
 			// #335: right-click → add this harness (and its room) as a todo.
 			// `dragRoomId` is the owning room's id, set by HarnessColumn.
 			onContextMenu={(e) => {
+				// Leave the native menu in the inline rename field (cut/copy/paste).
+				if (renaming) return;
 				if (dragRoomId) openTodoMenu(e, dragRoomId, h.id);
 			}}
 			className={`sk-harness-tab ${active ? "active" : ""} ${dragging ? "dragging" : ""} ${dropSide ? `drop-${dropSide}` : ""}`}
@@ -66,6 +75,17 @@ export const HarnessTab = ({
 				// #271: see RoomTab's onClick — same swallow-the-post-drop-click.
 				if (suppressClick?.()) return;
 				onClick();
+			}}
+			onDoubleClick={(e: ReactMouseEvent<HTMLDivElement>) => {
+				// On the tab root and hit-tested, for the reason RoomTab's own
+				// dblclick handler gives: the #271 drag's pointer capture
+				// retargets the dblclick to this div, so a handler on the
+				// name span itself never fires.
+				if (renaming) return;
+				const hit = document.elementFromPoint(e.clientX, e.clientY);
+				const nameEl = hit instanceof Element ? hit.closest(".ht-name") : null;
+				if (!nameEl || !e.currentTarget.contains(nameEl)) return;
+				setRenaming(true);
 			}}
 			data-drag-kind={dragKind}
 			data-drag-id={dragId}
@@ -90,7 +110,19 @@ export const HarnessTab = ({
 						: undefined
 				}
 			/>
-			<span className="ht-name">{h.name}</span>
+			{renaming ? (
+				<TabNameInput
+					className="ht-name-input"
+					initial={h.name}
+					onCommit={(name) => {
+						onRename(name);
+						setRenaming(false);
+					}}
+					onCancel={() => setRenaming(false)}
+				/>
+			) : (
+				<span className="ht-name">{h.name}</span>
+			)}
 			{/* #329: no `title` here — the hover popover (statusPopover.ts)
 			 *  shows the same mail info as a segment, matching every other
 			 *  hover on this tab instead of a native tooltip. */}
@@ -130,7 +162,9 @@ export const HarnessTab = ({
 					↑
 				</button>
 			)}
-			{closable && (
+			{/* Hidden mid-rename, as on the room tab: a stray click there
+			    would close the harness the input is about to name. */}
+			{closable && !renaming && (
 				<span
 					className="ht-x"
 					onClick={(e) => {

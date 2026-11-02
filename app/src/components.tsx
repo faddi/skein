@@ -15,5 +15,5 @@ export {
 } from "./HarnessPicker.tsx";
 export { HarnessTab } from "./HarnessTab.tsx";
 export { HChip, StatusDot } from "./HChip.tsx";
-export { RoomNameInput } from "./RoomNameInput.tsx";
 export { RoomTab } from "./RoomTab.tsx";
+export { TabNameInput } from "./TabNameInput.tsx";
