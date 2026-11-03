@@ -2,7 +2,9 @@ import { type KeyboardEvent as ReactKeyboardEvent, useEffect, useRef, useState }
 import { commitRoomName } from "./roomName.ts";
 import { OVERLAY_CLOSED_EVENT } from "./useFocusRestore.ts";
 
-// #241: the room tab's name span turns into this on a double-click.
+// #241: a room tab's name span turns into this on a double-click, and
+// so does a harness tab's (HarnessTab.tsx), which commits by the same
+// rule (`commitRoomName`: trimmed, or the old name when that is empty).
 // No keystroke/pointer event may reach the tab underneath — a bare
 // keydown would otherwise re-enter the window-level shortcut dispatch
 // (App.tsx's `onKey`), and pointerdown/click/dblclick would start a tab
@@ -16,14 +18,16 @@ import { OVERLAY_CLOSED_EVENT } from "./useFocusRestore.ts";
 // commit closed the editor the instant it opened; (2) a blur commit
 // means the user clicked somewhere else on purpose, and yanking focus
 // to the terminal would fight that click.
-// Exported so `RoomStrip.tsx`'s `GroupTab` can reuse it directly — the
-// top-row group tab renames the SAME `Room.name` field as the lead's
-// own second-row tab (#241), just via a different host component.
-export const RoomNameInput = ({
+// `GroupTab` reuses it too — the top-row group tab renames the SAME
+// `Room.name` field as the lead's own second-row tab (#241), just via a
+// different host component. `className` is the host's slot styling.
+export const TabNameInput = ({
+	className,
 	initial,
 	onCommit,
 	onCancel,
 }: {
+	className: string;
 	initial: string;
 	onCommit: (name: string) => void;
 	onCancel: () => void;
@@ -64,7 +68,7 @@ export const RoomNameInput = ({
 	return (
 		<input
 			ref={inputRef}
-			className="name name-input"
+			className={className}
 			value={value}
 			onChange={(e) => setValue(e.target.value)}
 			onBlur={commit}

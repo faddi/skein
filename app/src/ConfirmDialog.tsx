@@ -36,7 +36,7 @@ const ConfirmDialogBox = ({ request }: { request: ConfirmDialogRequest }) => {
 	// `autoFocus` prop only fires once and doesn't survive dev
 	// StrictMode's synthetic mount→cleanup→mount: that cleanup runs
 	// `useFocusRestore`'s dispatch immediately, which hands focus to
-	// the terminal (see components.tsx's RoomNameInput comment for the
+	// the terminal (see TabNameInput.tsx's comment for the
 	// general shape of this trap) — but because this is a *second*,
 	// independent effect, StrictMode's second pass re-runs it too and
 	// takes focus right back, so the button ends up focused either way.
@@ -53,7 +53,7 @@ const ConfirmDialogBox = ({ request }: { request: ConfirmDialogRequest }) => {
 			onKeyDown={(e) => {
 				// Never let a keystroke meant for this dialog reach the
 				// window-level shortcut dispatch (useKeyboardShortcuts.ts) —
-				// same reasoning as RoomNameInput in components.tsx.
+				// same reasoning as TabNameInput.tsx.
 				e.stopPropagation();
 				if (e.key === "Escape") {
 					e.preventDefault();

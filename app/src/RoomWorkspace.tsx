@@ -1,5 +1,6 @@
 import { useLayoutEffect, useMemo, useRef } from "react";
 import { publishDesignFocus } from "./designFocus.ts";
+import { withHarnessName } from "./harnessCreation.ts";
 import { LeftSlot, RightSlot, type RoomHandlers } from "./RoomWorkspaceSlots.tsx";
 import { Splitter } from "./Splitter.tsx";
 import type { Room } from "./types.ts";
@@ -49,6 +50,8 @@ const useRoomHandlers = (p: RoomWorkspaceProps): RoomHandlers => {
 			cancelPick: () => latest.current.setShowPicker(null),
 			switchHarness: (roomId, harnessId) => latest.current.actions.selectHarness(roomId, harnessId),
 			closeHarness: (roomId, harnessId) => latest.current.actions.closeHarness(roomId, harnessId),
+			renameHarness: (roomId, harnessId, name) =>
+				latest.current.store.setRooms((prev) => withHarnessName(prev, roomId, harnessId, name)),
 			cmdChange: (roomId, harnessId, cmd) =>
 				latest.current.actions.updateHarnessCmd(roomId, harnessId, cmd),
 			designEntry: (roomId, harnessId, entry) =>
