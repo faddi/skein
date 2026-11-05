@@ -13,7 +13,7 @@ import "@xterm/xterm/css/xterm.css";
 import type { HarnessCapabilities } from "./data.tsx";
 import { isMac } from "./shortcuts.ts";
 import { fitTerminal } from "./terminalFit.ts";
-import { shouldHostOpenLink } from "./terminalLinks.ts";
+import { shouldHostOpenLink, URI_REGEX } from "./terminalLinks.ts";
 import { pathLinkProvider } from "./terminalPathLinks.ts";
 import { attachWheelReports } from "./terminalWheel.ts";
 
@@ -88,20 +88,9 @@ export function createXterm(
 	//
 	// 1. Plain-text URIs that appear in terminal output (e.g. claude
 	//    printing a docs URL, gh printing a PR-create URL). Detected
-	//    by WebLinksAddon's regex matcher. The default regex only
-	//    catches http(s); we widen it to any well-formed
-	//    `scheme://...`, so vscode://, slack://, file://, ssh://,
-	//    etc. all work. The OS picks the handler app, so we don't
-	//    need a per-scheme allow-list. The leading word-boundary +
-	//    ASCII-only scheme guard avoids matching things like
-	//    `std::vector` (`vector` isn't a valid URI authority).
-	//
-	//    The regex has *no* `g` flag — WebLinkProvider always
-	//    appends `g` to whatever flags we pass (see
-	//    @xterm/addon-web-links/src/WebLinkProvider.ts:60), so
-	//    a global flag here would produce `'gg'` and throw
-	//    SyntaxError. Letting it own the global flag matches its
-	//    contract.
+	//    by WebLinksAddon with `URI_REGEX` (terminalLinks.ts), which
+	//    widens the default http(s) to any `scheme://...`, so
+	//    vscode://, slack://, file://, ssh://, etc. all work.
 	//
 	//    `mailto:` and other no-`://` URIs aren't supported via
 	//    this provider — the addon's `isUrl` validator requires
@@ -130,7 +119,6 @@ export function createXterm(
 	// macOS's Cmd is never forwarded (#571) and
 	// CLAUDE_CODE_DISABLE_MOUSE_CLICKS makes the CLI ignore clicks
 	// (#401, learned from the spawn result via `linkPolicy`).
-	const uriRegex = /\b[a-zA-Z][a-zA-Z0-9+.-]+:\/\/[^\s()[\]{}"'<>\\^`|]+/;
 	const isModifierClick = (event: MouseEvent) => (isMac ? event.metaKey : event.ctrlKey);
 	const handleUriClick = (event: MouseEvent, uri: string) => {
 		if (!isModifierClick(event)) return;
@@ -152,7 +140,7 @@ export function createXterm(
 			console.warn("[skein] openUrl failed:", uri, msg);
 		});
 	};
-	term.loadAddon(new WebLinksAddon(handleUriClick, { urlRegex: uriRegex }));
+	term.loadAddon(new WebLinksAddon(handleUriClick, { urlRegex: URI_REGEX }));
 	term.options.linkHandler = {
 		activate: (event, uri) => handleUriClick(event, uri),
 	};
