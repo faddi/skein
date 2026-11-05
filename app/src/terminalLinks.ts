@@ -12,6 +12,19 @@
 //   env the CLI ignores clicks (tracking stays on for scrolling). Never
 //   defer.
 
+/** Plain-text URIs WebLinksAddon turns into links (#24): any well-formed
+ *  `scheme://…`, not only http(s), so the OS picks the handler. The leading
+ *  word boundary and ASCII-only scheme keep `std::vector` out.
+ *
+ *  #706: the last character can't be sentence punctuation (`.,;:!?`), so
+ *  "see https://x.dev/a." or "https://x.dev/a, and" open `https://x.dev/a`.
+ *  The same set file paths drop (`TRAILING` in terminalPathText.ts); a URL
+ *  that really ends in one of those loses it, as in other terminals.
+ *
+ *  No `g` flag: WebLinkProvider appends one itself, and `gg` throws. */
+export const URI_REGEX =
+	/\b[a-zA-Z][a-zA-Z0-9+.-]+:\/\/[^\s()[\]{}"'<>\\^`|]*[^\s()[\]{}"'<>\\^`|.,;:!?]/;
+
 export interface LinkPolicyInput {
 	isMac: boolean;
 	/** `CLAUDE_CODE_DISABLE_MOUSE_CLICKS` is truthy in the harness env. */
