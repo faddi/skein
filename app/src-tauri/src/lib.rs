@@ -41,6 +41,7 @@ mod room_paths;
 mod setup;
 mod spawn_env;
 mod spawn_settings;
+mod terminal_paths;
 mod updater_proxy;
 mod watcher;
 
@@ -101,6 +102,8 @@ pub fn run() {
             fs::read_file_text,
             fs::write_file_text,
             fs::read_image_bytes,
+            terminal_paths::resolve_terminal_paths,
+            terminal_paths::open_terminal_path,
             commands::pty::pty_spawn,
             commands::pty::pty_write,
             commands::pty::pty_resize,

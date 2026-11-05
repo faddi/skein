@@ -10,9 +10,11 @@ import { Unicode11Addon } from "@xterm/addon-unicode11";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { Terminal } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
+import type { HarnessCapabilities } from "./data.tsx";
 import { isMac } from "./shortcuts.ts";
 import { fitTerminal } from "./terminalFit.ts";
 import { shouldHostOpenLink } from "./terminalLinks.ts";
+import { pathLinkProvider } from "./terminalPathLinks.ts";
 import { attachWheelReports } from "./terminalWheel.ts";
 
 /** Click-time link policy, mutated by the caller once `pty_spawn` resolves (#401). */
@@ -25,18 +27,22 @@ export interface LinkPolicy {
  *  (#24). Mirrors exactly what `LiveTerminal`'s mount effect used to do
  *  inline — see the comments below, moved verbatim.
  *
- *  `opensClickedLinks` is the harness kind's
- *  `HarnessCapabilities.opensClickedLinks` (#269) — true only for
- *  `claude`, whose fullscreen renderer opens a Cmd/Ctrl-clicked URL
- *  itself once mouse tracking is on.
+ *  `caps.opensClickedLinks` (#269) is true only for `claude`, whose
+ *  fullscreen renderer opens a Cmd/Ctrl-clicked URL itself once mouse
+ *  tracking is on.
  *
  *  `linkPolicy` is mutated by the caller once `pty_spawn` resolves
- *  (#401: `mouseClicksDisabled`) and read at click time. */
+ *  (#401: `mouseClicksDisabled`) and read at click time.
+ *
+ *  With `caps.localPaths`, file paths in the output are Cmd/Ctrl-
+ *  clickable too, relative ones resolved against `cwd` (#704, see
+ *  terminalPathLinks.ts). */
 export function createXterm(
 	host: HTMLDivElement,
 	fontSize: number,
-	opensClickedLinks: boolean,
+	caps: Pick<HarnessCapabilities, "opensClickedLinks" | "localPaths">,
 	linkPolicy: LinkPolicy,
+	cwd: string,
 ): { term: Terminal; fit: FitAddon } {
 	const term = new Terminal({
 		fontFamily: '"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace',
@@ -125,16 +131,16 @@ export function createXterm(
 	// CLAUDE_CODE_DISABLE_MOUSE_CLICKS makes the CLI ignore clicks
 	// (#401, learned from the spawn result via `linkPolicy`).
 	const uriRegex = /\b[a-zA-Z][a-zA-Z0-9+.-]+:\/\/[^\s()[\]{}"'<>\\^`|]+/;
+	const isModifierClick = (event: MouseEvent) => (isMac ? event.metaKey : event.ctrlKey);
 	const handleUriClick = (event: MouseEvent, uri: string) => {
-		const isModifierClick = isMac ? event.metaKey : event.ctrlKey;
-		if (!isModifierClick) return;
+		if (!isModifierClick(event)) return;
 		event.preventDefault();
 		if (
 			!shouldHostOpenLink({
 				isMac,
 				mouseClicksDisabled: linkPolicy.mouseClicksDisabled,
 				mouseTrackingOn: term.modes.mouseTrackingMode !== "none",
-				cliOpensClickedLinks: opensClickedLinks,
+				cliOpensClickedLinks: caps.opensClickedLinks,
 			})
 		) {
 			console.debug("[skein] deferring link open to CLI:", uri);
@@ -150,6 +156,9 @@ export function createXterm(
 	term.options.linkHandler = {
 		activate: (event, uri) => handleUriClick(event, uri),
 	};
+	if (caps.localPaths) {
+		term.registerLinkProvider(pathLinkProvider(term, cwd, isModifierClick));
+	}
 
 	// Trackpad scrolling in a mouse-tracking TUI: one wheel report per
 	// line of travel, like a native macOS terminal (see terminalWheel.ts).
