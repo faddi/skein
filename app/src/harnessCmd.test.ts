@@ -146,6 +146,7 @@ describe("hermes (#623)", () => {
 			opensClickedLinks: false,
 			screenPhase: true,
 			bracketedPasteRequired: true,
+			localPaths: true,
 		});
 		expect(HARNESS_ORDER.indexOf("hermes")).toBe(HARNESS_ORDER.indexOf("copilot") + 1);
 	});

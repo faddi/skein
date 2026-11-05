@@ -71,6 +71,11 @@ export interface HarnessCapabilities {
 	/// submitting. A bracketed paste is not typed, so it never opens the
 	/// popup; an unbracketed one is typed keystrokes and would.
 	bracketedPasteRequired: boolean;
+	/// File paths in the PTY's output name files on this machine, so they
+	/// can be Cmd/Ctrl-clicked open (#704, terminalPathLinks.ts). False for
+	/// `remote`, whose paths live on the remote host: a local stat would
+	/// at best miss and at worst open an unrelated local file.
+	localPaths: boolean;
 }
 
 export interface HarnessKindMeta {
@@ -120,6 +125,7 @@ export const HARNESS_KINDS: Record<HarnessKind, HarnessKindMeta> = {
 			opensClickedLinks: true,
 			screenPhase: false,
 			bracketedPasteRequired: false,
+			localPaths: true,
 		},
 	},
 	opencode: {
@@ -141,6 +147,7 @@ export const HARNESS_KINDS: Record<HarnessKind, HarnessKindMeta> = {
 			opensClickedLinks: false,
 			screenPhase: false,
 			bracketedPasteRequired: false,
+			localPaths: true,
 		},
 	},
 	copilot: {
@@ -162,6 +169,7 @@ export const HARNESS_KINDS: Record<HarnessKind, HarnessKindMeta> = {
 			opensClickedLinks: false,
 			screenPhase: false,
 			bracketedPasteRequired: false,
+			localPaths: true,
 		},
 	},
 	// #623 tier A: phase from the rendered screen (screenPhase.ts); #625 adds the
@@ -186,6 +194,7 @@ export const HARNESS_KINDS: Record<HarnessKind, HarnessKindMeta> = {
 			opensClickedLinks: false,
 			screenPhase: true,
 			bracketedPasteRequired: true,
+			localPaths: true,
 		},
 	},
 	// `byoh` is the kind id we kept from the design's "bring your own
@@ -212,6 +221,7 @@ export const HARNESS_KINDS: Record<HarnessKind, HarnessKindMeta> = {
 			opensClickedLinks: false,
 			screenPhase: false,
 			bracketedPasteRequired: false,
+			localPaths: true,
 		},
 	},
 	// #568: the remote harness, a tool run inside tmux on a remote host over
@@ -238,6 +248,7 @@ export const HARNESS_KINDS: Record<HarnessKind, HarnessKindMeta> = {
 			opensClickedLinks: false,
 			screenPhase: false,
 			bracketedPasteRequired: false,
+			localPaths: false,
 		},
 	},
 	// #49 phase A: the file surface as a harness. Deliberately not a
@@ -261,6 +272,7 @@ export const HARNESS_KINDS: Record<HarnessKind, HarnessKindMeta> = {
 			opensClickedLinks: false,
 			screenPhase: false,
 			bracketedPasteRequired: false,
+			localPaths: false,
 		},
 	},
 	// #433: a live preview of the worktree's HTML in a sandboxed iframe.
@@ -283,6 +295,7 @@ export const HARNESS_KINDS: Record<HarnessKind, HarnessKindMeta> = {
 			opensClickedLinks: false,
 			screenPhase: false,
 			bracketedPasteRequired: false,
+			localPaths: false,
 		},
 	},
 };

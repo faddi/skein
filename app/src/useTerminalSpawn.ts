@@ -117,7 +117,7 @@ export function useTerminalSpawn(params: UseTerminalSpawnParams): void {
 
 		const caps = HARNESS_KINDS[harnessKind].capabilities;
 		const linkPolicy: LinkPolicy = { mouseClicksDisabled: false };
-		const { term, fit } = createXterm(host, fontSize, caps.opensClickedLinks, linkPolicy);
+		const { term, fit } = createXterm(host, fontSize, caps, linkPolicy, cwd);
 		termRef.current = term;
 		fitRef.current = fit;
 		// #592: every xterm write goes through this gate (hidden = buffered).
