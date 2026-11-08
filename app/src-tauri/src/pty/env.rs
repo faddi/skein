@@ -233,7 +233,7 @@ pub(super) fn apply_env(
 
     // After every layer that can set a locale, before the profile, so a
     // profile that unsets `LANG` on purpose still gets its way.
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(target_os = "macos")]
     apply_default_lang(builder);
 
     // #615: the resolved env profile, over extra_env.
@@ -403,10 +403,17 @@ fn same_env_key(a: &str, b: &str) -> bool {
 /// locale chosen anywhere (inherited, login shell, extra env) is never
 /// overridden. `LANG`, not `LC_CTYPE=UTF-8`: ssh forwards `LANG`/`LC_*`
 /// by default, and bare `UTF-8` is not a locale on Linux, where every
-/// remote shell would warn about it. Unix only: Git Bash on Windows
-/// derives `LANG` from the Windows locale when it is unset, and setting
-/// one here would override that.
-#[cfg(not(target_os = "windows"))]
+/// remote shell would warn about it.
+///
+/// macOS only. A Linux desktop session sets `LANG`, and minimal installs
+/// often lack `en_US.UTF-8`, so a default there would cause `setlocale`
+/// warnings; Git Bash on Windows derives `LANG` from the Windows locale.
+///
+/// The `remote` kind (ssh) gets it too, on purpose: `apply_env` does not
+/// know the kind, and a remote tmux without a UTF-8 locale garbles the
+/// same way. A remote lacking the locale warns; an env profile can set
+/// or unset `LANG`.
+#[cfg(target_os = "macos")]
 fn apply_default_lang(builder: &mut CommandBuilder) {
     let has_locale = ["LC_ALL", "LC_CTYPE", "LANG"]
         .iter()

@@ -655,6 +655,6 @@ mod login_env_tests;
 #[cfg(test)]
 mod env_profile_tests;
 
-/// The default `LANG` is Unix-only, and so are its tests.
-#[cfg(all(test, unix))]
+/// The default `LANG` is macOS-only, and so are its tests.
+#[cfg(all(test, target_os = "macos"))]
 mod locale_tests;
