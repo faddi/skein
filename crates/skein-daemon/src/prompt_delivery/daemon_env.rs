@@ -21,7 +21,7 @@ use crate::agent_api::verbs::unread_mail_impl;
 use crate::db::Database;
 use crate::event_sink::{self, SharedEventSink};
 use crate::harness_argv::runs_its_tool;
-use crate::harness_phase::{ClientPhaseInput, PhaseService};
+use crate::harness_phase::PhaseService;
 use crate::room_store::RoomStore;
 
 /// Broadcast when a harness's mail starts or stops being held by the draft
@@ -55,6 +55,20 @@ pub trait PtyPort: Send + Sync {
     fn live_pty(&self, harness_id: &str) -> Option<String>;
     /// `false` when the write failed.
     fn write(&self, pty_id: &str, bytes: &[u8]) -> bool;
+}
+
+/// A harness's unread mail, read fresh from the database (never marks
+/// read). The delivery env and the supervisor's mail facts (#733 part B)
+/// read it through this one function. `None` when the harness is unknown
+/// or the lookup failed.
+#[must_use]
+pub fn unread_for(store: &RoomStore, db: &Database, harness_id: &str) -> Option<UnreadMail> {
+    let (room_id, _) = store.find_harness(harness_id)?;
+    let m = unread_mail_impl(db, &room_id, harness_id).ok()?;
+    Some(UnreadMail {
+        count: u32::try_from(m.count).unwrap_or(u32::MAX),
+        from: m.from_room_names,
+    })
 }
 
 pub struct DaemonEnv {
@@ -118,22 +132,19 @@ impl DeliveryEnv for DaemonEnv {
     }
 
     fn note_prompt_submitted(&mut self, harness_id: &str) {
-        self.phase
-            .client_input(harness_id, ClientPhaseInput::PromptSubmitted);
+        self.phase.prompt_submitted(harness_id);
     }
 
     fn recover_unheard_silence(&mut self, harness_id: &str) {
-        self.phase
-            .client_input(harness_id, ClientPhaseInput::RecoverUnheardSilence);
+        self.phase.recover_unheard_silence(harness_id);
     }
 
     fn unread(&self, harness_id: &str) -> Option<UnreadMail> {
-        let (room_id, _) = self.store.find_harness(harness_id)?;
-        let m = unread_mail_impl(&self.db, &room_id, harness_id).ok()?;
-        Some(UnreadMail {
-            count: u32::try_from(m.count).unwrap_or(u32::MAX),
-            from: m.from_room_names,
-        })
+        unread_for(&self.store, &self.db, harness_id)
+    }
+
+    fn publish_mail_facts(&mut self, harness_id: &str, facts: super::env::MailFacts) {
+        self.shared.set_mail_facts(harness_id, facts);
     }
 
     fn publish_held(&mut self, harness_id: &str, held: bool) {

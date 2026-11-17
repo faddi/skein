@@ -22,8 +22,8 @@ use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender, SyncSender, channel, s
 use std::time::{Duration, Instant};
 
 use super::core::{DeliveryCore, DeliveryEvent, Reply};
-use super::env::{DeliveryEnv, DraftState};
-use super::gate::{Refusal, RefusalCode};
+use super::env::{DeliveryEnv, DraftState, MailFacts};
+use super::gate::{GateMode, Refusal, RefusalCode};
 use super::shared::Shared;
 use crate::harness_phase::PhaseNotice;
 use crate::harness_phase::service::Clock;
@@ -105,6 +105,34 @@ impl DeliveryHandle {
         }
     }
 
+    /// Read-only: what the gate would answer for this harness right now
+    /// (`Send`: what [`send_manual`](Self::send_manual) would, including
+    /// `Busy` while a prompt is in flight; `Insert`: the file-drop gate).
+    /// Writes nothing and records nothing. `body: None` is an empty
+    /// single-line body. Runs on the worker, which owns the in-flight state.
+    ///
+    /// # Errors
+    /// The gate's refusal, or `Busy` / `NotReady` when the worker does not
+    /// answer in time or is gone.
+    pub fn check(
+        &self,
+        harness_id: &str,
+        body: Option<&str>,
+        mode: GateMode,
+    ) -> Result<(), Refusal> {
+        match self.call(
+            DeliveryEvent::Check {
+                harness_id: harness_id.to_owned(),
+                body: body.map(str::to_owned),
+                mode,
+            },
+            CALL_TIMEOUT,
+        )? {
+            Reply::Check(r) => r,
+            other => Err(unexpected(&other)),
+        }
+    }
+
     /// #413: the user released held mail.
     ///
     /// # Errors
@@ -160,6 +188,14 @@ impl DeliveryHandle {
     #[must_use]
     pub fn held_snapshot(&self) -> Vec<String> {
         self.shared.held_snapshot()
+    }
+
+    /// The mail facts the supervisor reads (#733 part B): the last nudge's
+    /// time and the refusal holding pending mail. A shared read, never a
+    /// worker round trip.
+    #[must_use]
+    pub fn supervisor_mail(&self, harness_id: &str) -> MailFacts {
+        self.shared.mail_facts(harness_id)
     }
 
     /// The shared facts, for the real env to be built over.
