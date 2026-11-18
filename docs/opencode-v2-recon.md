@@ -194,7 +194,7 @@ calls `crates/skein-harness/src/opencode.rs:169`, which runs
 `SELECT 1 FROM session WHERE id = ?1 AND time_archived IS NULL` [skein].
 
 - Under v2 that table is v1-only, so the probe must read `session_v2`
-  instead. Its `time_archived` column was not checked.
+  instead. Its `time_archived` column is nullable, like v1's (verified, #679).
 - The probe matters more in v2: `--session <unknown id>` **creates** a
   session with that id instead of failing [run]. A fake `ses_…` id was
   accepted and listed afterwards.
@@ -215,7 +215,9 @@ for the variable, `:122` for the file) to
 - **`OPENCODE_CONFIG` is still read** [src] (`core/src/config.ts`) [run].
 - **The v1 MCP shape loads.** It is normalised to `disabled: false`,
   `{env:}` is substituted, and a connect attempt hits the substituted URL
-  [run].
+  [run]. It connects, but its tools are offered only through Code Mode
+  (`execute`), never as direct `skein_<tool>` tools: see #695, which adds
+  `opencode.v2.json` with `codemode: false` for v2 spawns.
 - **The docs' shape fails in 2.2.0.** The docs describe `mcp.servers.<name>`
   with `disabled` [docs], but in 2.2.0 that input shape loads and then
   connect returns 404 `McpServerNotFoundError` [run]. So **keep the v1 shape**.
@@ -419,7 +421,16 @@ No; code against the HTTP contract, and pin it with fixtures instead.
 
 Tested on a real migrated database. Case 1 and the v1-side listing in case
 3 are [run]. Case 2's resume behaviour and case 3's claim about v2 sessions
-are INFERRED and need a check before issue 5 relies on them:
+are INFERRED, now backed by the facts below (#679):
+
+- `session_v2` has a nullable `time_archived`.
+- A fresh v2 database has no `session` table at all.
+- `GET /api/session/<unknown id>` returns 404 `SessionNotFoundError`.
+- The migration is gated on the kv key `migration.v1-v2` and runs once (read
+  in the 2.3.0 bundle).
+- `session export` / `session import` exist, but recovering a v1-only
+  session with them was NOT tested.
+
 
 1. **The session existed when v2 first opened the database.** Most stored
    ids fall in this case.
@@ -431,11 +442,12 @@ are INFERRED and need a check before issue 5 relies on them:
 2. **v1 created the session after v2's one-shot migration**, for example
    when a machine went back to v1 for a while.
    - It is not in `session_v2`, so v2 does not list it.
-   - INFERRED from the fake-id run: `--session <id>` would silently create
+   - INFERRED from the earlier unknown-id run plus the facts above (the
+     migration never runs again): `--session <id>` would silently create
      a **new empty** session under that id.
-   - Skein must catch this before spawning. If the id is in `session` but
-     not in `session_v2`, say so and offer a fresh session. Never resume
-     into an empty one.
+   - Skein now refuses this at spawn (#679): the id is in `session` but not
+     in `session_v2`, so it starts a fresh session and reports
+     `sessionNotice` in the spawn result. Never resume into an empty one.
    - v2 has `session export`/`session import` commands, a possible recovery
      path that was not tested.
 3. **Back to v1 after v2 ran.** v1's own sessions still list and export

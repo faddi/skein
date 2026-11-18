@@ -486,6 +486,7 @@ will tell you:
     │       │   claude-plugin/       #   resource (see tauri.conf.json `resources`):
     │       │   opencode/            #   .claude-plugin/plugin.json + .mcp.json + a lazily
     │       │                        #   loaded skein-review SKILL.md; opencode.json
+    │       │                        #   (v1) + opencode.v2.json (v2, #695)
     │       ├── src/agents.rs        # Moved to crates/skein-daemon (#581), re-exported here at
     │       │                        #   the old path. DTO layer over the crate's agent discovery (#246), plus
     │       │                        #   the two things it can't do: resolve the program the way
@@ -697,7 +698,11 @@ will tell you:
   hidden with `display:none`. PTYs die with the Skein process. Since #752
   the spawn derives its argv from the record at spawn time
   (`harness_argv/spawn.rs`): `--resume`/`--session` only when a probe run
-  then finds the session, never `--continue`, and the shell argv when
+  then finds the session (for opencode the probe reads both `session`, v1,
+  and `session_v2`, v2; `prepare_opencode_spawn` then checks the table of
+  the version that actually runs, and when the stored id belongs to the
+  other major version it starts a fresh session and reports `sessionNotice`
+  in the spawn result, #679), never `--continue`, and the shell argv when
   `Harness.launch` is a shell (Enter on an exited pane sets it and leaves
   `cmd` alone; Restart harness clears it; boot and unarchive keep it).
   Boot preparation is the daemon's too (`boot_resume.rs`, reduced by
@@ -1075,7 +1080,10 @@ will tell you:
   are useless until the CLI knows there is a server at that address, so
   the spawn (`ensure_running`, #731) also appends `--plugin-dir <resources>/harness-config/`
   `claude-plugin` for Claude Code and sets `OPENCODE_CONFIG` for
-  opencode. Both are **session-scoped and additive** — installed plugins
+  opencode. A v2 spawn (the serve sidecar and its `--server` TUI) gets
+  `opencode.v2.json` instead: its only differences are the v2-native
+  `mcp.servers` shape and `codemode: false`, because v2 otherwise hides
+  MCP tools behind its single `execute` tool (#695). Both are **session-scoped and additive** — installed plugins
   and the user's own config still load, and a repo's `opencode.json`
   still beats Skein's — and **nothing is written into the worktree**, so
   there is no file in the review's own diff, no MCP trust prompt, and
